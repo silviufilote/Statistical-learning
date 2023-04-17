@@ -18,6 +18,8 @@ graphics.off()
 # ctrl + L => to clear console
 
 # Add Libraries in order to use them 
+
+$ setwd("C:\\Users\\fsilv\\Desktop\\Statistical-learning")
 library(MASS)
 library(ISLR2)
 library(data.table)
@@ -69,6 +71,7 @@ hist(data$UniRatings, 40,
      main = "Distribuzione University Rating")
 
 
+
 hist(data$SOP, 40,
      xlab = "SOP",
      main = "Distribuzione SOP")
@@ -93,8 +96,6 @@ hist(data$Admit, 40,
      main = "Distribuzione Chance of Admit")
 
 
-
-
 ################################################################################
 #########################################  Analisi univariata
 ################################################################################
@@ -106,49 +107,49 @@ plot(data$GRE,
      main = "GRE score vs Chance of Admit", 
      xlab = "GRE score", 
      ylab = "Chance of Admit")
-abline(lm(data$Admit ~ data$GRE, data = mtcars), col = "blue")
+abline(lm(data$Admit ~ data$GRE, data = data), col = "blue")
 
 plot(data$TOEFL, 
      data$Admit,  
      main = "TOEFL score vs Chance of Admit", 
      xlab = "TOEFL score", 
      ylab = "Chance of Admit")
-abline(lm(data$Admit ~ data$TOEFL, data = mtcars), col = "blue")
+abline(lm(data$Admit ~ data$TOEFL, data = data), col = "blue")
 
 plot(data$UniRatings, 
      data$Admit,  
      main = "UniRatings vs Chance of Admit", 
      xlab = "UniRatings", 
      ylab = "Chance of Admit")
-abline(lm(data$Admit ~ data$UniRatings, data = mtcars), col = "blue")
+abline(lm(data$Admit ~ data$UniRatings, data = data), col = "blue")
 
 plot(data$SOP, 
      data$Admit,  
      main = "SOP vs Chance of Admit", 
      xlab = "SOP", 
      ylab = "Chance of Admit")
-abline(lm(data$Admit ~ data$SOP, data = mtcars), col = "blue")
+abline(lm(data$Admit ~ data$SOP, data = data), col = "blue")
 
 plot(data$LOR, 
      data$Admit,  
      main = "LOR vs Chance of Admit", 
      xlab = "LOR", 
      ylab = "Chance of Admit")
-abline(lm(data$Admit ~ data$LOR, data = mtcars), col = "blue")
+abline(lm(data$Admit ~ data$LOR, data = data), col = "blue")
 
 plot(data$CGPA, 
      data$Admit,  
      main = "CGPA vs Chance of Admit", 
      xlab = "CGPA", 
      ylab = "Chance of Admit")
-abline(lm(data$Admit ~ data$CGPA, data = mtcars), col = "blue")
+abline(lm(data$Admit ~ data$CGPA, data = data), col = "blue")
 
 plot(data$Research, 
      data$Admit, 
      main = "Research vs Chance of Admit", 
      xlab = "Research", 
      ylab = "Chance of Admit")
-abline(lm(data$Admit ~ data$Research, data = mtcars), col = "blue")
+abline(lm(data$Admit ~ data$Research, data = data), col = "blue")
 
 
 
@@ -191,9 +192,10 @@ remove_outlier <- function(dataframe) {
 par(mfrow = c(1,1))
 boxplot(scale(data))$out
 
-for(i in 1:2){
+for(i in 1:6){
   data <- remove_outlier(data)
 }
+
 
 
 # crate multiple dataset to fit later

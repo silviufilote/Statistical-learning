@@ -32,11 +32,6 @@ library(boot)
 library(glmnet)
 
 
-# clearing environment 
-rm(list = ls())
-graphics.off()
-
-
 # dataset cleaning 
 data <- read.csv("C:\\Users\\fsilv\\Dropbox\\UNI\\stistics\\1.csv")
 data <- data.frame(data[,2:9])
@@ -86,42 +81,42 @@ train = sample(dim(data)[1], dim(data)[1]*0.7, replace = FALSE)
 
 data <- data %>% 
   mutate_at(vars(Research, LOR, SOP, UniRatings), as.factor)
-lm_fit <- lm(Admit ~ ., data = data) 
 
-lm_fit <- update(lm_fit, ~ . - SOP - UniRatings - LOR)
-summary(lm_fit)
-
+lm_fit_train <- lm(Admit ~ ., data = data, subset = train) 
+summary(lm_fit_train)
 
 
-
-# Prove
-shapiro.test(lm_fit$residuals)
-anova(lm_fit)
-confint(lm_fit, level = 0.98)
-total_MSE = anova(lm_fit)['Residuals', 'Mean Sq']
+lm_fit_train <- update(lm_fit_train, ~ . - SOP - UniRatings - LOR)
+summary(lm_fit_train)
 
 
+#shapiro.test(lm_fit$residuals)
+# anova(lm_fit_train)
+## confint(lm_fit, level = 0.98)
+## total_MSE = anova(lm_fit)['Residuals', 'Mean Sq']
 
 
-# analisys res -> all dataset
-shapiro.test(lm_fit$residuals)
-bptest(lm_fit)
+# analisys res -> train set
+shapiro.test(lm_fit_train$residuals)
+bptest(lm_fit_train)
 
-par(mfrow = c(2,2))
-hist(lm_fit$residuals,40,
+par(mfrow = c(1,4))
+hist(lm_fit_train$residuals,40,
      xlab = "Residual",
-     main = "Distribuzione empirica dei residui") 
+     main = "histogram residuals") 
 
-plot(lm_fit$residuals, pch = "o", col = "blue" ,
-     ylab = "Residual", main = paste0("Residual plot - mean:",round(mean(lm_fit$residuals),digits = 4),
-                                      "- var:", round(var(lm_fit$residuals),digits = 2)))
-abline(c(0,0),c(0,length(lm_fit$residuals)), col= "red", lwd = 2)
+plot(lm_fit_train$residuals, pch = "o", col = "blue" ,
+     ylab = "Residual", main = paste0("Residual plot - mean:",round(mean(lm_fit_train$residuals),digits = 4),
+                                      "- var:", round(var(lm_fit_train$residuals),digits = 2)))
+abline(c(0,0),c(0,length(lm_fit_train$residuals)), col= "red", lwd = 2)
 
-boxplot(lm_fit$residuals)$out
+boxplot(lm_fit_train$residuals, main = "Outliers")$out
 
-qqnorm(lm_fit$residuals, main='Residuals')
-qqline(lm_fit$residuals)
+qqnorm(lm_fit_train$residuals, main='Residuals')
+qqline(lm_fit_train$residuals)
 
+shapiro.test(lm_fit_train$residuals) # non normality
+bptest(lm_fit_train) # non homoscehdasticity
 
 
 
@@ -129,7 +124,6 @@ qqline(lm_fit$residuals)
 lm_fit_validation <- lm(Admit ~ .  - SOP - UniRatings - LOR, data = data, subset = train)
 yhat <- predict(lm_fit_validation, newdata = data[-train,])
 lm_MSE_test_val <- mean((yhat - data$Admit[-train])^2)
-
 
 
 
@@ -160,15 +154,47 @@ boot_model$t0
 boot_model
 
 
+################################################################################
+############################### Correlazione covariate residui 
+################################################################################
+
+
+par(mfrow = c(2,2))
+plot(lm_fit_train$model$GRE, 
+     lm_fit_train$residuals, 
+     main = "GRE score vs Res", 
+     xlab = "GRE score", 
+     ylab = "Res")
+abline(lm(lm_fit_train$residuals ~ lm_fit_train$model$GRE, data = data), col = "blue")
+
+plot(lm_fit_train$model$TOEFL, 
+     lm_fit_train$residuals,  
+     main = "TOEFL score vs Res", 
+     xlab = "TOEFL score", 
+     ylab = "Res")
+abline(lm(lm_fit_train$residuals ~ lm_fit_train$model$TOEFL, data = data), col = "blue")
+
+plot(lm_fit_train$model$CGPA, 
+     lm_fit_train$residuals,  
+     main = "CGPA vs Res", 
+     xlab = "CGPA", 
+     ylab = "Res")
+abline(lm(lm_fit_train$residuals ~ lm_fit_train$model$CGPA, data = data), col = "blue")
+
+plot(lm_fit_train$model$Research, 
+     lm_fit_train$residuals,  
+     main = "Research vs Res", 
+     xlab = "Research", 
+     ylab = "Res")
+abline(lm(lm_fit_train$residuals ~ lm_fit_train$model$Research, data = data), col = "blue")
+
 
 ################################################################################
 ############################### Stepwise regression method
 ################################################################################
 
-lm_fit_all <- lm(Admit ~ ., data = data) 
+lm_fit_all <- lm(Admit ~ . + log10(GRE) + log10(TOEFL) + log10(CGPA) + scale(GRE) + scale(TOEFL) + scale(CGPA) + sqrt(GRE) + sqrt(TOEFL) + sqrt(CGPA), data = data) 
 summary(lm_fit_all)
-
-
 
 
 # Step-wise Regression -> best model based on AIC value.
@@ -179,8 +205,6 @@ model_stepwise <- step(
   scope = list(upper = lm_fit_all),
   trace = FALSE)
 summary(model_stepwise)
-
-
 
 
 # model performance
