@@ -86,7 +86,7 @@ lm_fit_train <- lm(Admit ~ ., data = data, subset = train)
 summary(lm_fit_train)
 
 
-lm_fit_train <- update(lm_fit_train, ~ . - SOP - UniRatings - LOR)
+lm_fit_train <- update(lm_fit_train, ~ . - SOP - UniRatings)
 summary(lm_fit_train)
 
 
@@ -97,9 +97,6 @@ summary(lm_fit_train)
 
 
 # analisys res -> train set
-shapiro.test(lm_fit_train$residuals)
-bptest(lm_fit_train)
-
 par(mfrow = c(1,4))
 hist(lm_fit_train$residuals,40,
      xlab = "Residual",
@@ -121,14 +118,21 @@ bptest(lm_fit_train) # non homoscehdasticity
 
 
 # Validation 
-lm_fit_validation <- lm(Admit ~ .  - SOP - UniRatings - LOR, data = data, subset = train)
+lm_fit_validation <- lm(Admit ~ .  - SOP - UniRatings, data = data, subset = train)
 yhat <- predict(lm_fit_validation, newdata = data[-train,])
 lm_MSE_test_val <- mean((yhat - data$Admit[-train])^2)
 
 
+for(i in 1:dim(data.frame(yhat))[1]){
+  if(yhat[i] < 0 || yhat[i] > 1){
+    print(yhat[i])
+  }
+}
+
+
 
 # Cross-validation
-model_cv = glm(Admit ~ .  - SOP - UniRatings - LOR, data = data)
+model_cv = glm(Admit ~ .  - SOP - UniRatings, data = data)
 model_cv = cv.glm(data, model_cv)
 lm_MSE_train_LOOCV <- model_cv$delta[1]
 lm_MSE_test_LOOCV <- model_cv$delta[2]
@@ -142,14 +146,16 @@ library(boot)
 
 set.seed(1)
 
+df = data[train,]
+
 get_model <- function(data, index){
-  boot_train <- data[index,]
-  boot_model <- glm(Admit ~ ., data = boot_train)  
-  boot_model <- update(boot_model, ~ . - SOP - UniRatings - LOR)
+  boot_data <- data[index,]
+  boot_model <- glm(Admit ~ ., data = boot_data)  
+  boot_model <- update(boot_model, ~ . - SOP - UniRatings)
   return (boot_model$coefficients)
 }
 
-boot_model <- boot(data = data, statistic = get_model, R = 1000);
+boot_model <- boot(data = data[train,], statistic = get_model, R = 1000) 
 boot_model$t0
 boot_model
 
@@ -193,32 +199,32 @@ abline(lm(lm_fit_train$residuals ~ lm_fit_train$model$Research, data = data), co
 ############################### Stepwise regression method
 ################################################################################
 
-lm_fit_all <- lm(Admit ~ . + log10(GRE) + log10(TOEFL) + log10(CGPA) + scale(GRE) + scale(TOEFL) + scale(CGPA) + sqrt(GRE) + sqrt(TOEFL) + sqrt(CGPA), data = data) 
+lm_fit_all <- lm(Admit ~ . + exp(GRE) + exp(TOEFL) + exp(CGPA) + log10(GRE) + log10(TOEFL) + log10(CGPA) + poly(GRE,3) + poly(TOEFL,3) + poly(CGPA,3) + sqrt(GRE) + sqrt(TOEFL) + sqrt(CGPA), data = data, subset = train) 
 summary(lm_fit_all)
 
 
 # Step-wise Regression -> best model based on AIC value.
-lm_fit_none <- lm(formula = Admit ~ 1, data = data)
+lm_fit_none <- lm(formula = Admit ~ 1, data = data, subset = train)
+
 model_stepwise <- step(
-  object = lm_fit_none,
-  direction = "both",
-  scope = list(upper = lm_fit_all),
+  object = lm_fit_all,
+  direction = "backward",
   trace = FALSE)
 summary(model_stepwise)
 
 
 # model performance
-performance <- compare_performance(lm_fit, lm_fit_all, model_stepwise)
+performance <- compare_performance(lm_fit_train, lm_fit_all, model_stepwise)
 as.data.frame(performance)
 
 
 
 
-# analisys res -> all dataset
+ # analisys res -> all dataset
 shapiro.test(model_stepwise$residuals)
 bptest(model_stepwise)
 
-par(mfrow = c(2,2))
+par(mfrow = c(1,4))
 hist(model_stepwise$residuals,40,
      xlab = "Residual",
      main = "Distribuzione empirica dei residui") 
@@ -236,21 +242,20 @@ qqline(model_stepwise$residuals)
 
 
 # Validation 
-lm_fit_none <- lm(formula = Admit ~ 1, data = data, subset = train)
-lm_fit_all <- lm(Admit ~ ., data = data, subset = train)
-model_stepwise <- step(
-  object = lm_fit_none,
-  direction = "both",
-  scope = list(upper = lm_fit_all),
-  trace = FALSE)
 yhat <- predict(model_stepwise, newdata = data[-train,])
 step_MSE_test_val <- mean((yhat - data$Admit[-train])^2)
 
 
 
+for(i in 1:dim(data.frame(yhat))[1]){
+  if(yhat[i] < 0 || yhat[i] > 1){
+    print(yhat[i])
+  }
+}
+
 
 # Cross-validation
-model_cv <- glm(Admit ~ CGPA + GRE + LOR + Research + TOEFL + UniRatings, data = data)
+model_cv <- glm(Admit ~ log10(GRE) + log10(TOEFL) + log10(CGPA) + exp(CGPA) + poly(CGPA, 3) + LOR + Research + UniRatings, data = data)
 model_cv <- cv.glm(data, model_cv)
 step_MSE_train_LOOCV <- model_cv$delta[1]
 step_MSE_test_LOOCV <- model_cv$delta[2]
@@ -343,6 +348,8 @@ lambda <- 10^seq(-3, 0,length = 300)
 
 set.seed(1)
 cv_lasso <- cv.glmnet(x[train, ], y[train], alpha = 1, lambda = lambda );
+
+par(mfrow = c(1,1))
 plot(cv_lasso)
 
 
