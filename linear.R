@@ -104,10 +104,10 @@ hist(lm_fit_train$residuals,40,
 
 plot(lm_fit_train$residuals, pch = "o", col = "blue" ,
      ylab = "Residual", main = paste0("Residual plot - mean:",round(mean(lm_fit_train$residuals),digits = 4),
-                                      "- var:", round(var(lm_fit_train$residuals),digits = 2)))
+                                      "- var:", round(var(lm_fit_train$residuals),digits = 4)))
 abline(c(0,0),c(0,length(lm_fit_train$residuals)), col= "red", lwd = 2)
 
-boxplot(lm_fit_train$residuals, main = "Outliers")$out
+boxplot(lm_fit_train$residuals, ylab = "Residuals", main = "Outliers")$out
 
 qqnorm(lm_fit_train$residuals, main='Residuals')
 qqline(lm_fit_train$residuals)
@@ -231,10 +231,10 @@ hist(model_stepwise$residuals,40,
 
 plot(model_stepwise$residuals, pch = "o", col = "blue" ,
      ylab = "Residual", main = paste0("Residual plot - mean:",round(mean(model_stepwise$residuals),digits = 4),
-                                      "- var:", round(var(model_stepwise$residuals),digits = 2)))
+                                      "- var:", round(var(model_stepwise$residuals),digits = 4)))
 abline(c(0,0),c(0,length(model_stepwise$residuals)), col= "red", lwd = 2)
 
-boxplot(model_stepwise$residuals)$out
+boxplot(model_stepwise$residuals, ylab = "Residuals", main = "Outliers")$out
 
 qqnorm(model_stepwise$residuals, main='Residuals')
 qqline(model_stepwise$residuals)
@@ -283,6 +283,112 @@ boot_model
 
 
 
+
+################################################################################
+#########################################  LASSO 
+################################################################################
+
+library(boot)
+library(glmnet)
+
+df <- data
+
+for(x in 1:1:(dim(df)[2] - 5)){
+  df[paste("l",colnames(df)[x], sep = "")] <- log(df[x])
+  df[paste("s",colnames(df)[x], sep = "")] <- (df[x])^2
+  df[paste("c",colnames(df)[x], sep = "")] <- (df[x])^3
+  df[paste("r",colnames(df)[x], sep = "")] <- sqrt(df[x])
+  df[paste("e",colnames(df)[x], sep = "")] <- exp(df[x])
+}
+
+df[paste("e",colnames(df)[x], sep = "")] <- exp(df[x])
+
+
+x <- model.matrix(Admit ~ . ,df) [, -1]
+y <- df$Admit
+lambda <- 10^seq(-3, 0,length = 300)
+
+set.seed(1)
+cv_lasso <- cv.glmnet(x[train, ], y[train], alpha = 1, lambda = lambda );
+
+par(mfrow = c(1,1))
+plot(cv_lasso)
+
+
+coef(cv_lasso, cv_lasso$lambda.1se)
+coef(cv_lasso, cv_lasso$lambda.min)
+
+
+opt_lambda <- cv_lasso$lambda.1se
+
+
+lasso_model <- glmnet(x[train,], y[train], alpha = 1, lambda = opt_lambda)
+fitt_value <- predict(lasso_model, s = opt_lambda, newx=x[-train,])
+lasso_MSE_test = mean((y[-train] - fitt_value)^2)
+
+res_lasso = y[-train] - fitt_value
+coef(lasso_model, opt_lambda)
+
+
+# Testing residuals
+shapiro.test(res_lasso) # non normality
+# bptest(lasso_model) # vale solo nel caso lineare
+
+
+par(mfrow = c(1,4))
+
+hist(res_lasso,40,
+     xlab = "Residual",
+     main = "Distribuzione empirica dei residui") 
+
+plot(res_lasso, pch = "o", col = "blue" ,
+     ylab = "Residual", main = paste0("Residual plot - mean:",round(mean(res_lasso),digits = 4),
+                                      "- var:", round(var(res_lasso),digits = 4)))
+abline(c(0,0),c(0,length(res_lasso)), col= "red", lwd = 2)
+
+boxplot(res_lasso, ylab = "Residuals", main = "Outliers", )$out
+
+qqnorm(res_lasso, main='Residuals')
+qqline(res_lasso)
+
+
+
+
+################################################################################
+#########################################  Model Improvement
+################################################################################
+
+
+fit_log10 <- lm(asin(sqrt(data$Admit)) ~ log10(GRE) + log10(TOEFL) + log10(CGPA) + Research, data)
+summary(fit_log10)
+shapiro.test(fit_log10$residuals) # no normality
+bptest(fit_log10) #  homoscehdasticity
+
+
+
+
+lm_fit_train <- lm( asin(sqrt(data$Admit)) ~ ., data = data, subset = train) 
+lm_fit_train <- update(lm_fit_train, ~ . - SOP - UniRatings)
+summary(lm_fit_train)
+
+
+shapiro.test(lm_fit_train$residuals) # no normality
+bptest(lm_fit_train) 
+
+
+
+
+lm_fit_train <- lm( Admit ~ GRE:TOEFL:CGPA + SOP:LOR, data = data, subset = train) 
+lm_fit_train <- update(lm_fit_train, ~ .)
+summary(lm_fit_train)
+
+shapiro.test(lm_fit_train$residuals) # no normality
+bptest(lm_fit_train) 
+
+
+
+
+
 ################################################################################
 #########################################  Model Improvement
 ################################################################################
@@ -322,77 +428,6 @@ bptest(fit_sqrt) #  homoscehdasticity
 
 performance_model <- compare_performance(lm_fit, fit_arcisn, fit_log10, fit_scale, fit_sqrt)
 as.data.frame(performance_model)
-
-
-
-################################################################################
-#########################################  LASSO 
-################################################################################
-
-library(boot)
-library(glmnet)
-
-df <- data
-
-for(x in 1:1:(dim(df)[2] - 5)){
-  df[paste("l",colnames(df)[x], sep = "")] <- log(df[x])
-  df[paste("s",colnames(df)[x], sep = "")] <- (df[x])^2
-  df[paste("c",colnames(df)[x], sep = "")] <- (df[x])^3
-  df[paste("r",colnames(df)[x], sep = "")] <- sqrt(df[x])
-  df[paste("e",colnames(df)[x], sep = "")] <- exp(df[x])
-}
-
-x <- model.matrix(Admit ~ . ,df) [, -1]
-y <- df$Admit
-lambda <- 10^seq(-3, 0,length = 300)
-
-set.seed(1)
-cv_lasso <- cv.glmnet(x[train, ], y[train], alpha = 1, lambda = lambda );
-
-par(mfrow = c(1,1))
-plot(cv_lasso)
-
-
-coef(cv_lasso, cv_lasso$lambda.1se)
-coef(cv_lasso, cv_lasso$lambda.min)
-
-opt_lambda <- cv_lasso$lambda.min
-
-lasso_model <- glmnet(x[train,], y[train],alpha = 1, lambda = opt_lambda)
-fitt_value <- predict(lasso_model, s = opt_lambda, newx=x[-train,])
-lasso_MSE_test = mean((y[-train] - fitt_value)^2)
-
-res_lasso = y[-train] - fitt_value
-
-
-# Testing residuals
-shapiro.test(res_lasso) # non normality
-bptest(fit_scale) #  homoscehdasticity
-
-
-par(mfrow = c(2,2))
-
-hist(res_lasso,40,
-     xlab = "Residual",
-     main = "Distribuzione empirica dei residui") 
-
-plot(res_lasso, pch = "o", col = "blue" ,
-     ylab = "Residual", main = paste0("Residual plot - mean:",round(mean(res_lasso),digits = 4),
-                                      "- var:", round(var(res_lasso),digits = 2)))
-abline(c(0,0),c(0,length(res_lasso)), col= "red", lwd = 2)
-
-boxplot(res_lasso)$out
-
-qqnorm(res_lasso, main='Residuals')
-qqline(res_lasso)
-
-
-
-
-
-
-
-
 
 
 
