@@ -158,7 +158,7 @@ plot(model.finalgam$residuals, pch = "o", col = "blue" ,
                                       "- var:", round(var(model.finalgam$residuals),digits = 4)))
 abline(c(0,0),c(0,length(model.finalgam$residuals)), col= "red", lwd = 2)
 
-boxplot(model.finalgam$residuals)$out
+boxplot(model.finalgam$residuals, main="Outliers")$out
 
 qqnorm(model.finalgam$residuals, main='Residuals')
 qqline(model.finalgam$residuals)
