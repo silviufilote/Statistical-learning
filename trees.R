@@ -112,7 +112,7 @@ test_RMSE_tree = round(sqrt(mean((res)^2)), digits = 3)
 
 
 # residual analysis
-bptest(tree_model) # non sono omoschedastici
+bptest(tree_model_train) # non sono omoschedastici
 shapiro.test(res) # non sono normali
 
 par(mfrow = c(1,4))

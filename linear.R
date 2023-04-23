@@ -73,6 +73,8 @@ data <- data %>% relocate(CGPA, .after=TOEFL)
 set.seed(1)
 train = sample(dim(data)[1], dim(data)[1]*0.7, replace = FALSE)
 
+df = data[train,]
+
 
 ################################################################################
 ############################### fit linear model: using whole data
@@ -82,12 +84,12 @@ train = sample(dim(data)[1], dim(data)[1]*0.7, replace = FALSE)
 data <- data %>% 
   mutate_at(vars(Research, LOR, SOP, UniRatings), as.factor)
 
-lm_fit_train <- lm(Admit ~ ., data = data, subset = train) 
-summary(lm_fit_train)
+lm_model <- lm(Admit ~ ., data = data, subset = train) 
+summary(lm_model)
 
 
-lm_fit_train <- update(lm_fit_train, ~ . - SOP - UniRatings)
-summary(lm_fit_train)
+lm_model <- update(lm_model, ~ . - SOP - UniRatings)
+summary(lm_model)
 
 
 #shapiro.test(lm_fit$residuals)
@@ -98,29 +100,28 @@ summary(lm_fit_train)
 
 # analisys res -> train set
 par(mfrow = c(1,4))
-hist(lm_fit_train$residuals,40,
+hist(lm_model$residuals,40,
      xlab = "Residual",
      main = "histogram residuals") 
 
-plot(lm_fit_train$residuals, pch = "o", col = "blue" ,
-     ylab = "Residual", main = paste0("Residual plot - mean:",round(mean(lm_fit_train$residuals),digits = 4),
-                                      "- var:", round(var(lm_fit_train$residuals),digits = 4)))
-abline(c(0,0),c(0,length(lm_fit_train$residuals)), col= "red", lwd = 2)
+plot(lm_model$residuals, pch = "o", col = "blue" ,
+     ylab = "Residual", main = paste0("Residual plot - mean:",round(mean(lm_model$residuals),digits = 4),
+                                      "- var:", round(var(lm_model$residuals),digits = 4)))
+abline(c(0,0),c(0,length(lm_model$residuals)), col= "red", lwd = 2)
 
-boxplot(lm_fit_train$residuals, ylab = "Residuals", main = "Outliers")$out
+boxplot(lm_model$residuals, ylab = "Residuals", main = "Outliers")$out
 
-qqnorm(lm_fit_train$residuals, main='Residuals')
-qqline(lm_fit_train$residuals)
+qqnorm(lm_model$residuals, main='Residuals')
+qqline(lm_model$residuals)
 
-shapiro.test(lm_fit_train$residuals) # non normality
-bptest(lm_fit_train) # non homoscehdasticity
+shapiro.test(lm_model$residuals) # non normality
+bptest(lm_model) # non homoscehdasticity
 
 
 
 # Validation 
-lm_fit_validation <- lm(Admit ~ .  - SOP - UniRatings, data = data, subset = train)
-yhat <- predict(lm_fit_validation, newdata = data[-train,])
-lm_MSE_test_val <- mean((yhat - data$Admit[-train])^2)
+yhat <- predict(lm_model, newdata = data[-train,])
+lm_RMSE <- round(sqrt(mean((yhat - data$Admit[-train])^2)), digits = 4)
 
 
 for(i in 1:dim(data.frame(yhat))[1]){
@@ -134,8 +135,8 @@ for(i in 1:dim(data.frame(yhat))[1]){
 # Cross-validation
 model_cv = glm(Admit ~ .  - SOP - UniRatings, data = data)
 model_cv = cv.glm(data, model_cv)
-lm_MSE_train_LOOCV <- model_cv$delta[1]
-lm_MSE_test_LOOCV <- model_cv$delta[2]
+lm_rMSE_train_LOOCV <- round(sqrt(model_cv$delta[1]), digits = 4)
+lm_rMSE_test_LOOCV <- round(sqrt(model_cv$delta[2]), digits = 4)
 
 
 ################################################################################
@@ -146,7 +147,9 @@ library(boot)
 
 set.seed(1)
 
-df = data[train,]
+df <- df %>% 
+  mutate_at(vars(Research, LOR, SOP, UniRatings), as.factor)
+
 
 get_model <- function(data, index){
   boot_data <- data[index,]
@@ -155,7 +158,7 @@ get_model <- function(data, index){
   return (boot_model$coefficients)
 }
 
-boot_model <- boot(data = data[train,], statistic = get_model, R = 1000) 
+boot_model <- boot(data = df, statistic = get_model, R = 1000) 
 boot_model$t0
 boot_model
 
@@ -199,6 +202,8 @@ abline(lm(lm_fit_train$residuals ~ lm_fit_train$model$Research, data = data), co
 ############################### Stepwise regression method
 ################################################################################
 
+set.seed(1)
+
 lm_fit_all <- lm(Admit ~ . + exp(GRE) + exp(TOEFL) + exp(CGPA) + log10(GRE) + log10(TOEFL) + log10(CGPA) + poly(GRE,3) + poly(TOEFL,3) + poly(CGPA,3) + sqrt(GRE) + sqrt(TOEFL) + sqrt(CGPA), data = data, subset = train) 
 summary(lm_fit_all)
 
@@ -206,44 +211,44 @@ summary(lm_fit_all)
 # Step-wise Regression -> best model based on AIC value.
 lm_fit_none <- lm(formula = Admit ~ 1, data = data, subset = train)
 
-model_stepwise <- step(
+stepwise_model <- step(
   object = lm_fit_all,
   direction = "backward",
   trace = FALSE)
-summary(model_stepwise)
+summary(stepwise_model)
 
 
 # model performance
-performance <- compare_performance(lm_fit_train, lm_fit_all, model_stepwise)
+performance <- compare_performance(lm_fit_train, lm_fit_all, stepwise_model)
 as.data.frame(performance)
 
 
 
 
  # analisys res -> all dataset
-shapiro.test(model_stepwise$residuals)
-bptest(model_stepwise)
+shapiro.test(stepwise_model$residuals)
+bptest(stepwise_model)
 
 par(mfrow = c(1,4))
-hist(model_stepwise$residuals,40,
+hist(stepwise_model$residuals,40,
      xlab = "Residual",
      main = "Distribuzione empirica dei residui") 
 
-plot(model_stepwise$residuals, pch = "o", col = "blue" ,
-     ylab = "Residual", main = paste0("Residual plot - mean:",round(mean(model_stepwise$residuals),digits = 4),
-                                      "- var:", round(var(model_stepwise$residuals),digits = 4)))
-abline(c(0,0),c(0,length(model_stepwise$residuals)), col= "red", lwd = 2)
+plot(stepwise_model$residuals, pch = "o", col = "blue" ,
+     ylab = "Residual", main = paste0("Residual plot - mean:",round(mean(stepwise_model$residuals),digits = 4),
+                                      "- var:", round(var(stepwise_model$residuals),digits = 4)))
+abline(c(0,0),c(0,length(stepwise_model$residuals)), col= "red", lwd = 2)
 
-boxplot(model_stepwise$residuals, ylab = "Residuals", main = "Outliers")$out
+boxplot(stepwise_model$residuals, ylab = "Residuals", main = "Outliers")$out
 
-qqnorm(model_stepwise$residuals, main='Residuals')
-qqline(model_stepwise$residuals)
+qqnorm(stepwise_model$residuals, main='Residuals')
+qqline(stepwise_model$residuals)
 
 
 
 # Validation 
-yhat <- predict(model_stepwise, newdata = data[-train,])
-step_MSE_test_val <- mean((yhat - data$Admit[-train])^2)
+yhat <- predict(stepwise_model, newdata = data[-train,])
+step_RMSE_test_val <- round(sqrt(mean((yhat - data$Admit[-train])^2)), digits = 4)
 
 
 
@@ -257,8 +262,8 @@ for(i in 1:dim(data.frame(yhat))[1]){
 # Cross-validation
 model_cv <- glm(Admit ~ log10(GRE) + log10(TOEFL) + log10(CGPA) + exp(CGPA) + poly(CGPA, 3) + LOR + Research + UniRatings, data = data)
 model_cv <- cv.glm(data, model_cv)
-step_MSE_train_LOOCV <- model_cv$delta[1]
-step_MSE_test_LOOCV <- model_cv$delta[2]
+step_MSE_train_LOOCV <- round(sqrt(model_cv$delta[1]), digits = 4)
+step_MSE_test_LOOCV <- round(sqrt(model_cv$delta[2]), digits = 4)
 
 
 
@@ -288,6 +293,7 @@ boot_model
 #########################################  LASSO 
 ################################################################################
 
+set.seed(1)
 library(boot)
 library(glmnet)
 
@@ -324,7 +330,7 @@ opt_lambda <- cv_lasso$lambda.1se
 
 lasso_model <- glmnet(x[train,], y[train], alpha = 1, lambda = opt_lambda)
 fitt_value <- predict(lasso_model, s = opt_lambda, newx=x[-train,])
-lasso_MSE_test = mean((y[-train] - fitt_value)^2)
+lasso_RMSE_test = round(sqrt(mean((y[-train] - fitt_value)^2)), digits = 4)
 
 res_lasso = y[-train] - fitt_value
 coef(lasso_model, opt_lambda)
@@ -359,33 +365,15 @@ qqline(res_lasso)
 ################################################################################
 
 
-fit_log10 <- lm(asin(sqrt(data$Admit)) ~ log10(GRE) + log10(TOEFL) + log10(CGPA) + Research, data)
-summary(fit_log10)
-shapiro.test(fit_log10$residuals) # no normality
-bptest(fit_log10) #  homoscehdasticity
+lm_model_imp <- lm( asin(sqrt(data$Admit)) ~ ., data = data, subset = train) 
+lm_model_imp <- update(lm_model_imp, ~ . - SOP - UniRatings)
+summary(lm_model_imp)
 
+yhat <- predict(lm_model_imp, newdata = data[-train,])
+step_RMSE_test_val <- round(sqrt(mean((sin(yhat^2) - data$Admit[-train])^2)), digits = 4)
 
-
-
-lm_fit_train <- lm( asin(sqrt(data$Admit)) ~ ., data = data, subset = train) 
-lm_fit_train <- update(lm_fit_train, ~ . - SOP - UniRatings)
-summary(lm_fit_train)
-
-
-shapiro.test(lm_fit_train$residuals) # no normality
-bptest(lm_fit_train) 
-
-
-
-
-lm_fit_train <- lm( Admit ~ GRE:TOEFL:CGPA + SOP:LOR, data = data, subset = train) 
-lm_fit_train <- update(lm_fit_train, ~ .)
-summary(lm_fit_train)
-
-shapiro.test(lm_fit_train$residuals) # no normality
-bptest(lm_fit_train) 
-
-
+shapiro.test(lm_model_imp$residuals) # no normality
+bptest(lm_model_imp) 
 
 
 
