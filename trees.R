@@ -101,7 +101,7 @@ plot(prune, main="Main title",
      xlab="X axis title",
      ylab="Y axis title",
      sub="Sub-title")
-text(prune, pretty = 0, main = "Tree pruned")
+text(prune, pretty = 0, main = "Tree pruned",  type = c("uniform"))
 
 
 # validation and MSE

@@ -58,41 +58,41 @@ par(mfrow = c(3,3))
 
 hist(data$GRE, 40,
      xlab = "GRE",
-     main = "Distribuzione GRE SCORE") 
+     main = "GRE SCORE distribution") 
 
 
 hist(data$TOEFL, 40,
      xlab = "TOEFL",
-     main = "Distribuzione TOEFL SCORE") 
+     main = "TOEFL SCORE distribution ") 
 
 
 hist(data$UniRatings, 40,
      xlab = "University Rating",
-     main = "Distribuzione University Rating")
+     main = "University Rating distribution")
 
 
 hist(data$SOP, 40,
      xlab = "SOP",
-     main = "Distribuzione SOP")
+     main = "SOP distribution")
 
 
 hist(data$LOR, 40,
      xlab = "LOR",
-     main = "Distribuzione LOR")
+     main = "LOR distribution")
 
 hist(data$CGPA, 40,
      xlab = "CGPA",
-     main = "Distribuzione CGPA")
+     main = "CGPA distribution")
 
 
 hist(data$Research, 40,
      xlab = "Research",
-     main = "Distribuzione Research")
+     main = "Research distribution")
 
 
 hist(data$Admit, 40,
      xlab = "Chance of Admit",
-     main = "Distribuzione Chance of Admit")
+     main = "Chance of Admit distribution")
 
 
 

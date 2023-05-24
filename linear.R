@@ -75,21 +75,21 @@ train = sample(dim(data)[1], dim(data)[1]*0.7, replace = FALSE)
 
 df = data[train,]
 
+data <- data %>% 
+  mutate_at(vars(Research, LOR, SOP, UniRatings), as.factor)
+
 
 ################################################################################
 ############################### fit linear model: using whole data
 ################################################################################
 
 
-data <- data %>% 
-  mutate_at(vars(Research, LOR, SOP, UniRatings), as.factor)
-
 lm_model <- lm(Admit ~ ., data = data, subset = train) 
-summary(lm_model)
+summary(lm_model,digits=3)
 
 
 lm_model <- update(lm_model, ~ . - SOP - UniRatings)
-summary(lm_model)
+summary(lm_model,digits=3)
 
 
 #shapiro.test(lm_fit$residuals)
@@ -143,25 +143,27 @@ lm_rMSE_test_LOOCV <- round(sqrt(model_cv$delta[2]), digits = 4)
 ###################################### Testing betas lm_fit model => Std. Error
 ################################################################################
 
+
 library(boot)
 
 set.seed(1)
+
+# train <- sample(dim(df)[1], dim(df)[1]*0.7, replace = FALSE)
+# df = data[train,]
 
 df <- df %>% 
   mutate_at(vars(Research, LOR, SOP, UniRatings), as.factor)
 
 
-get_model <- function(data, index){
-  boot_data <- data[index,]
-  boot_model <- glm(Admit ~ ., data = boot_data)  
-  boot_model <- update(boot_model, ~ . - SOP - UniRatings)
+get_model <- function(dataset, index){
+  boot_data <- dataset[index,]
+  boot_model <- glm(Admit ~ GRE + TOEFL + CGPA + LOR + Research, data = boot_data)  
   return (boot_model$coefficients)
 }
 
-boot_model <- boot(data = df, statistic = get_model, R = 1000) 
+boot_model <- boot(data = data, statistic = get_model, R = 1000) 
 boot_model$t0
 boot_model
-
 
 ################################################################################
 ############################### Correlazione covariate residui 
@@ -279,14 +281,18 @@ set.seed(1)
 get_model <- function(data, index){
   boot_train <- data[index,]
   boot_model <- glm(Admit ~ CGPA + GRE + LOR + Research + TOEFL + UniRatings, data = boot_train)  
-  return (boot_model$coefficients)
+  boot_model$coefficients
 }
 
-boot_model <- boot(data = data, statistic = get_model, R = 1000);
-boot_model$t0
-boot_model
+boot_result  <- boot(data = data, statistic = get_model, R = 1000);
+boot_result$t0
+boot_result 
 
+# Calculate the bootstrap mean
+bootstrap_mean <- mean(boot_result$t)
 
+# Obtain bootstrap confidence intervals
+bootstrap_ci <- boot.ci(boot_result, type = "basic")
 
 
 ################################################################################
@@ -328,6 +334,7 @@ coef(cv_lasso, cv_lasso$lambda.min)
 opt_lambda <- cv_lasso$lambda.1se
 
 
+
 lasso_model <- glmnet(x[train,], y[train], alpha = 1, lambda = opt_lambda)
 fitt_value <- predict(lasso_model, s = opt_lambda, newx=x[-train,])
 lasso_RMSE_test = round(sqrt(mean((y[-train] - fitt_value)^2)), digits = 4)
@@ -338,8 +345,8 @@ coef(lasso_model, opt_lambda)
 
 # Testing residuals
 shapiro.test(res_lasso) # non normality
-# bptest(lasso_model) # vale solo nel caso lineare
-
+#bptest() # vale solo nel caso lineare
+lasso_Rsquadre = lasso_model$dev.ratio
 
 par(mfrow = c(1,4))
 
@@ -357,6 +364,11 @@ boxplot(res_lasso, ylab = "Residuals", main = "Outliers", )$out
 qqnorm(res_lasso, main='Residuals')
 qqline(res_lasso)
 
+model_cv_lasso = glm(Admit ~ (GRE)^2 + (GRE)^3 + TOEFL + (TOEFL)^2 + (TOEFL)^3 + CGPA + Research, data = data)
+model_cv_lasso = cv.glm(data, model_cv_lasso)
+model_imp_rMSE_lasso_train <- round(sqrt(model_cv_lasso$delta[1]), digits = 4)
+model_imp_rMSE_lasso_test <- round(sqrt(model_cv_lasso$delta[2]), digits = 4)
+
 
 
 
@@ -365,7 +377,7 @@ qqline(res_lasso)
 ################################################################################
 
 
-lm_model_imp <- lm( asin(sqrt(data$Admit)) ~ ., data = data, subset = train) 
+lm_model_imp <- lm( asin(sqrt(Admit)) ~ ., data = data, subset = train) 
 lm_model_imp <- update(lm_model_imp, ~ . - SOP - UniRatings)
 summary(lm_model_imp)
 
@@ -374,6 +386,12 @@ step_RMSE_test_val <- round(sqrt(mean((sin(yhat^2) - data$Admit[-train])^2)), di
 
 shapiro.test(lm_model_imp$residuals) # no normality
 bptest(lm_model_imp) 
+
+
+model_cv_model_imp = glm( asin(sqrt(Admit)) ~ . - SOP - UniRatings, data = data)
+model_cv_model_imp = cv.glm(data, model_cv_model_imp)
+model_imp_rMSE_train_LOOCV <- round(sqrt(model_cv_model_imp$delta[1]), digits = 4)
+model_imp_rMSE_test_LOOCV <- round(sqrt(model_cv_model_imp$delta[2]), digits = 4)
 
 
 
