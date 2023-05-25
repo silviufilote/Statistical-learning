@@ -10,6 +10,8 @@ install.packages("psych")
 install.packages("dplyr")
 install.packages("performance")
 install.packages("lmtest")
+install.packages("tree")
+install.packages("randomForest")
 
 # clearing environment 
 rm(list = ls())
@@ -74,10 +76,7 @@ train = sample(dim(data)[1], dim(data)[1]*0.7, replace = FALSE)
 #########################################  Tree
 ################################################################################
 
-install.packages("tree")
 library(tree)
-
-set.seed(3)
 
 tree_model <- tree( Admit ~ . , data, subset = train, split = "gini")
 summary(tree_model)
@@ -139,7 +138,7 @@ qqline(res)
 #########################################  Bagging model
 ################################################################################
 
-install.packages("randomForest")
+
 library(randomForest)
 
 set.seed(3)
@@ -196,14 +195,15 @@ bagg_model
 # residuals
 bptest(bagg_model) 
 shapiro.test(res_bagg) 
+
 par(mfrow = c(1,4))
 hist(res_bagg,40,
      xlab = "Residual",
-     main = "Distribuzione empirica dei residui") 
+     main = "histogram residuals") 
 
 plot(res_bagg, pch = "o", col = "blue" ,
-     ylab = "Residual", main = paste0("Residual plot - mean:",round(mean(res_bagg),digits = 4),
-                                      "- var:", round(var(res_bagg),digits = 4)))
+     ylab = "Residual", main = paste0("Residual plot mean:",round(mean(res_bagg),digits = 2),
+                                      "- var:", round(var(res_bagg),digits = 3)))
 abline(c(0,0),c(0,length(res_bagg)), col= "red", lwd = 2)
 
 boxplot(res_bagg, ylab = "Residuals", main = "Outliers")$out
@@ -229,7 +229,7 @@ for(x in 1:6){
 }
 
 
-# create matrix with nReg per split, RMSE min, nTrees
+# create matrix with: [train RMSE - nTrees - test RMSE]
 rmse_min_reg <- matrix(list(), nrow=6, ncol=3)
 for(x in 1:6){
   for(i in 1:150){
@@ -260,23 +260,23 @@ for(x in 1:6){
 
 par(mfrow = c(3,2))
 plot(sqrt(forest_cv_models[[1]]$mse),type = 'b', ylab = "RMSE", xlab = "number of trees", main = "Random forest with 1 regressor per split")
-abline(v = index_min[1], col = "blue", lty = "dashed")
+abline(v = rmse_min_reg[1,2], col = "blue", lty = "dashed")
 plot(sqrt(forest_cv_models[[2]]$mse),type = 'b', ylab = "RMSE", xlab = "number of trees", main = "Random forest with 2 regressor per split")
-abline(v = index_min[2], col = "blue", lty = "dashed")
+abline(v = rmse_min_reg[2,2], col = "blue", lty = "dashed")
 plot(sqrt(forest_cv_models[[3]]$mse),type = 'b', ylab = "RMSE", xlab = "number of trees", main = "Random forest with 3 regressor per split")
-abline(v = index_min[3], col = "blue", lty = "dashed")
+abline(v = rmse_min_reg[3,2], col = "blue", lty = "dashed")
 plot(sqrt(forest_cv_models[[4]]$mse),type = 'b', ylab = "RMSE", xlab = "number of trees", main = "Random forest with 4 regressor per split")
-abline(v = index_min[4], col = "blue", lty = "dashed")
+abline(v = rmse_min_reg[4,2], col = "blue", lty = "dashed")
 plot(sqrt(forest_cv_models[[5]]$mse),type = 'b', ylab = "RMSE", xlab = "number of trees", main = "Random forest with 5 regressor per split")
-abline(v = index_min[5], col = "blue", lty = "dashed")
+abline(v = rmse_min_reg[5,2], col = "blue", lty = "dashed")
 plot(sqrt(forest_cv_models[[6]]$mse),type = 'b', ylab = "RMSE", xlab = "number of trees", main = "Random forest with 6 regressor per split")
-abline(v = index_min[6], col = "blue", lty = "dashed")
+abline(v = rmse_min_reg[6,2], col = "blue", lty = "dashed")
 
-
+set.seed(1)
 
 # best model validation
 forest_model <- randomForest(Admit ~ . ,data = data, subset = train,
-                             mtry = 2, importance = TRUE, ntree = 78)
+                             mtry = 3, importance = TRUE, ntree = 135)
 
 res_rdn = yhat - data$Admit[-train]
 yhat <- predict(forest_model, newdata = data[-train,])
