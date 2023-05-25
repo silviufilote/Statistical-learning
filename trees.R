@@ -77,6 +77,8 @@ train = sample(dim(data)[1], dim(data)[1]*0.7, replace = FALSE)
 install.packages("tree")
 library(tree)
 
+set.seed(3)
+
 tree_model <- tree( Admit ~ . , data, subset = train, split = "gini")
 summary(tree_model)
 plot(tree_model)
@@ -86,43 +88,45 @@ text(tree_model,pretty = 0)
 # cross-validation for pruning
 model_tree_cv <- cv.tree(tree_model,  FUN = prune.tree)
 best = min(model_tree_cv$size[model_tree_cv$dev == min(model_tree_cv$dev)])
-prune <- prune.tree(tree_model, best = best)
-summary(prune)
+prune_model <- prune.tree(tree_model, best = best + 1)
+summary(prune_model)
 
 
 # plotting tree
 par(mfrow = c(1,2))
 # dev = cross-validation error rate
 # size = number of terminal nodes of each tree -> complexity
-plot(model_tree_cv$size, model_tree_cv$dev, ylab = "cross-validation total rate", xlab = "Complexity = foglie", main ="Cross-validation total leaves")
-abline(v = 8, col = "blue", lty = "dashed")
-text(8, 15, "Benchmark", adj = c(0.5, -0.5))
-plot(prune, main="Main title",
+plot(model_tree_cv$size, model_tree_cv$dev, ylab = "cross-validation deviance", xlab = "Complexity = foglie", main ="Cross-validation total leaves")
+abline(v = best, col = "blue", lty = "dashed")
+legend(25, 6, legend=c(paste0("Best complexity = ", best)), 
+       fill = c("blue")
+)
+plot(prune_model, main="Main title",
      xlab="X axis title",
      ylab="Y axis title",
-     sub="Sub-title")
-text(prune, pretty = 0, main = "Tree pruned",  type = c("uniform"))
+     sub="Sub-title",type = c("uniform"))
+text(prune_model, pretty = 1, main = "Tree pruned",  type = c("uniform"))
 
 
 # validation and MSE
-yhat <- predict(tree_model, newdata = data[-train,])
+yhat <- predict(prune_model, newdata = data[-train,])
 res = data$Admit[-train] - yhat
-test_RMSE_tree = round(sqrt(mean((res)^2)), digits = 3)
+test_RMSE_prune = round(sqrt(mean((res)^2)), digits = 3)
 
 
 
 # residual analysis
-bptest(tree_model_train) # non sono omoschedastici
+bptest(prune_model) # non sono omoschedastici
 shapiro.test(res) # non sono normali
 
 par(mfrow = c(1,4))
 hist(res,40,
      xlab = "Residual",
-     main = "Distribuzione empirica dei residui") 
+     main = "histogram residuals") 
 
 plot(res, pch = "o", col = "blue" ,
-     ylab = "Residual", main = paste0("Residual plot - mean:",round(mean(res),digits = 4),
-                                      "- var:", round(var(res),digits = 4)))
+     ylab = "Residual", main = paste0("Residual plot mean:",round(mean(res),digits = 2),
+                                      "- var:", round(var(res),digits = 2)))
 abline(c(0,0),c(0,length(res)), col= "red", lwd = 2)
 
 boxplot(res, ylab = "Residuals", main = "Outliers")$out
@@ -138,12 +142,14 @@ qqline(res)
 install.packages("randomForest")
 library(randomForest)
 
-set.seed(1)
+set.seed(3)
 
 bagg_test <- randomForest(Admit ~ . ,data = data, subset = train,
                            mtry = ncol(data)-1, importance = TRUE, replace = TRUE)
 bagg_test
-plot(bagg_test, main = "Bagged Trees: Error vs Number of Trees")
+
+par(mfrow = c(1,2))
+plot(bagg_test, main = "Bagged Trees: training MSE vs Number of Trees")
 abline(v = 100, col = "blue", lty = "dashed")
 
 
@@ -160,7 +166,7 @@ for (i in 1:10){
 
 # pick the best number of trees
 nTrees = c(1:10)*10
-plot(nTrees, rmse_cv_bag, ylab="test RMSE", xlab="n Trees", main="Choosing the best number of trees", type = 'b')
+plot(nTrees, rmse_cv_bag, ylab="test RMSE", xlab="trees", main="Bagged models: test RMSE vs number of trees", type = 'b')
 
 for(i in 1:10){
   if(rmse_cv_bag[i] == min(rmse_cv_bag)){
