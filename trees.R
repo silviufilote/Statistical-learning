@@ -95,7 +95,7 @@ summary(prune_model)
 par(mfrow = c(1,2))
 # dev = cross-validation error rate
 # size = number of terminal nodes of each tree -> complexity
-plot(model_tree_cv$size, model_tree_cv$dev, ylab = "cross-validation deviance", xlab = "Complexity = foglie", main ="Cross-validation total leaves")
+plot(model_tree_cv$size, model_tree_cv$dev, ylab = "cross-validation deviance", xlab = "Complexity = leaves", main ="Cross-validation total leaves")
 abline(v = best, col = "blue", lty = "dashed")
 legend(25, 6, legend=c(paste0("Best complexity = ", best)), 
        fill = c("blue")

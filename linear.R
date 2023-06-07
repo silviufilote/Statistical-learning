@@ -73,10 +73,10 @@ data <- data %>% relocate(CGPA, .after=TOEFL)
 set.seed(1)
 train = sample(dim(data)[1], dim(data)[1]*0.7, replace = FALSE)
 
-df = data[train,]
-
 data <- data %>% 
   mutate_at(vars(Research, LOR, SOP, UniRatings), as.factor)
+
+df <- data[train,]
 
 
 ################################################################################
@@ -148,20 +148,15 @@ library(boot)
 
 set.seed(1)
 
-# train <- sample(dim(df)[1], dim(df)[1]*0.7, replace = FALSE)
-# df = data[train,]
+df <- model.matrix( ~ Admit + GRE + TOEFL + CGPA + LOR + Research - 1, data = data[train,])
 
-df <- df %>% 
-  mutate_at(vars(Research, LOR, SOP, UniRatings), as.factor)
-
-
-get_model <- function(dataset, index){
-  boot_data <- dataset[index,]
-  boot_model <- glm(Admit ~ GRE + TOEFL + CGPA + LOR + Research, data = boot_data)  
-  return (boot_model$coefficients)
+get_model <- function(data, index){
+  boot_data <- data[index,]
+  boot_model <- glm(Admit ~ GRE + TOEFL + CGPA + LOR2 + LOR2.5 + LOR3 + LOR3.5 + LOR4 + LOR4.5 + LOR5 +Research1, data = boot_data)  
+  return(boot_model$coefficients)
 }
 
-boot_model <- boot(data = data, statistic = get_model, R = 1000) 
+boot_model <- boot(data = as.data.frame(df), statistic = get_model, R = 1000) 
 boot_model$t0
 boot_model
 
