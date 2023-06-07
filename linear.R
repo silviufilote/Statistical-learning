@@ -33,7 +33,7 @@ library(glmnet)
 
 
 # dataset cleaning 
-data <- read.csv("C:\\Users\\fsilv\\Dropbox\\UNI\\stistics\\1.csv")
+data <- read.csv("1.csv")
 data <- data.frame(data[,2:9])
 colnames(data)[1] = "GRE"
 colnames(data)[2] = "TOEFL"
@@ -131,12 +131,39 @@ for(i in 1:dim(data.frame(yhat))[1]){
 }
 
 
-
 # Cross-validation
 model_cv = glm(Admit ~ .  - SOP - UniRatings, data = data)
 model_cv = cv.glm(data, model_cv)
 lm_rMSE_train_LOOCV <- round(sqrt(model_cv$delta[1]), digits = 4)
 lm_rMSE_test_LOOCV <- round(sqrt(model_cv$delta[2]), digits = 4)
+
+
+######################################################
+#Stepwise with R^2 adjusted criterio
+####################################################
+
+# Funzione personalizzata per calcolare l'R^2 aggiustato
+adjusted_r_squared <- function(model) {
+  1 - (1 - summary(model)$r.squared) * ((nrow(model$model) - 1) / (nrow(model$model) - length(model$coefficients) - 1))
+}
+
+# Esempio di regressione lineare stepwise con criterio R^2 aggiustato
+model <- lm(Admit ~ ., data = data)  # modello iniziale con tutte le variabili
+
+# Definizione della funzione di criterio basata sull'R^2 aggiustato
+criterion_adjusted_r_squared <- function(model) {
+  adjusted_r_squared(model)
+}
+
+# Esecuzione della regressione stepwise con criterio R^2 aggiustato
+step_model <- step(model, direction = "forward", scope = formula(model), criterion = criterion_adjusted_r_squared)
+
+
+# Validation 
+yhat <- predict(step_model, newdata = data[-train,])
+lm_RMSE <- round(sqrt(mean((yhat - data$Admit[-train])^2)), digits = 4)
+summary(lm_RMSE)
+
 
 
 ################################################################################
